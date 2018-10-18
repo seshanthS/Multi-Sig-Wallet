@@ -53,9 +53,9 @@ contract wallet {
     function() public payable {
         
     }
-    
+    uint txId;
     function transfer(address _to, string _data) public onlyAllowedOwners payable {
-        uint txId;
+        
         //for testing, lets increment txid automatically by 1;
         txId ++;
         //TODO : assign txHash
