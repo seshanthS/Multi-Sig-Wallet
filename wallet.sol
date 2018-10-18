@@ -20,7 +20,8 @@ contract wallet {
         uint amount;
         address _to;
         address _from;
-        string status;
+        //0 -> pending or 1 -> completed(success/fail)
+        uint8 status;
         string data;
         address[] signatures;
        
@@ -62,16 +63,16 @@ contract wallet {
     function() public payable {
         
     }
-    
+    uint txId;
     function transfer(address _to, string _data) public onlyAllowedOwners payable {
-        uint txId;
+       
         txId++;
         transaction memory t1;
         t1.id = txId;
         t1.amount = msg.value;
         t1._to = _to;
         t1._from = msg.sender;
-        t1.status = "Initiated";
+        t1.status = 0;
         t1.data = _data;
         
         tx[txId] = t1;
@@ -91,6 +92,9 @@ contract wallet {
     }
     
     function _transfer(address _to,uint _amount, uint _txId) internal {
+        transaction memory t1 = tx[_txId];
+        require(t1.status != 1);
+        t1.status = 1;
         address(_to).transfer(_amount);
         emit transactionComplete(_txId);
     }
@@ -102,10 +106,13 @@ contract wallet {
     }
     
     function approve(uint _txId) public onlyAllowedOwners {
-        transaction memory t1 = tx[_txId];
+        transaction storage t1 = tx[_txId];
         t1.signatureCount++;
-        address[] memory t = new t1.signatures[];
-        t1.signatures[].push(msg.sender);
+        t1.signatures.push(msg.sender);
+        if (t1.signatureCount >= minNeeded) {
+            emit gotRequiredSignatures(_txId);
+            _transfer(t1._to, t1.amount, t1.id);
+        }
         /*
         approval[_txId] +=1 ;
         uint amount = txAmount[_txId];
