@@ -11,8 +11,21 @@ contract wallet {
     mapping(uint => address) idToaddress;
     //txId, no.of.Approvals;
     mapping(uint => uint8) private approval;
+    //txid, amount;
+    mapping (uint => uint) txAmount;
+    
+    struct transaction {
+        uint id;
+        uint amount;
+        address _to;
+        address _from;
+        string status;
+        string data;
+    }
     
     event approvalNeeded(uint _txId, address _from, address _to, uint _amount, string _data);
+    event transactionComplete(uint _txId);
+    event gotRequiredSignatures(uint _txId);
     
     constructor() public payable {
         owner = msg.sender;
@@ -41,27 +54,34 @@ contract wallet {
         
     }
     
-    function transfer(address _to, uint _amount, string _data) public onlyAllowedOwners {
+    function transfer(address _to, string _data) public onlyAllowedOwners payable {
         uint txId;
         //for testing, lets increment txid automatically by 1;
         txId ++;
         //TODO : assign txHash
         idToaddress[txId] = _to;
-        requestApproval(txId, msg.sender, _to, _amount, _data);
+        uint amount;
+        amount = msg.value;
+        txAmount[txId] = amount;
+        requestApproval(txId, msg.sender, _to, _data);
     }
     
-    function _transfer(address _to) internal {
-        address(_to).transfer(msg.value);
+    function _transfer(address _to,uint _amount, uint _txId) internal {
+        address(_to).transfer(_amount);
+        emit transactionComplete(_txId);
     }
     
-    function requestApproval(uint _txId, address _from, address _to, uint _amount, string _data) private {
+    function requestApproval(uint _txId, address _from, address _to, string _data) private {
+       uint _amount = txAmount[_txId];
         emit approvalNeeded(_txId, _from, _to, _amount, _data);
     }
     
     function approve(uint _txId) public onlyAllowedOwners {
         approval[_txId] +=1 ;
+        uint amount = txAmount[_txId];
         if ( approval[_txId] >= minNeeded ) {
-            _transfer(idToaddress[_txId]);
+            emit gotRequiredSignatures(_txId);
+            _transfer(idToaddress[_txId], amount, _txId);
         }
     }
 }
